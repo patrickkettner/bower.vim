@@ -19,5 +19,7 @@
 * [Steve Losh](http://github.com/sjl)
 
 [Bower.vim]:http://github.com/patrickkettner/bower.vim
-[Vim]:http://www.vim.org
 [Bower]:https://github.com/twitter/bower
+[Vim]:http://www.vim.org
+[vim-rooter]:https://github.com/airblade/vim-rooter
+[vundle]:https://github.com/gmarik/vundle
