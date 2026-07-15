@@ -1,74 +1,26 @@
-" Bower.vim     Install browser components using Twitter's Bower package manager
+" Bower.vim     Install browser components using Bower, right from Vim
 " Author:       patrickkettner
 " HomePage:     http://github.com/patrickkettner/bower.vim
 " Readme:       http://github.com/patrickkettner/bower.vim/blob/master/README.md
-" Version:      0.1.0
+" Version:      1.0.0
 
-if !exists("g:bower_path")
-    let g:bower_path = "bower"
-endif
-
-if !exists("g:node_path")
-  let g:node_path = "node"
-endif
-
-if !exists("g:npm_path")
-  let g:npm_path = "npm"
+if !exists('g:bower_path')
+  let g:bower_path = 'bower'
 endif
 
 if !exists('g:bower_root_patterns')
-  let g:bower_root_patterns = ['.git/', '.git', '_darcs/', '.hg/', '.bzr/', '.svn/']
+  let g:bower_root_patterns = ['bower.json', '.bowerrc', 'bower_components/', 'components/', '.git', '.git/', '_darcs/', '.hg/', '.bzr/', '.svn/']
 endif
-
-function! s:NodeInstalled()
-
-  if executable(g:node_path)
-    let rawNodeVersion = substitute(system(g:node_path . ' --version'), '\n', '', '')
-    let nodeVersion = matchlist(rawNodeVersion, 'v\?\(\d*\)\.\(\d*\)\.\(\d*\)')
-    let nodeMajor = nodeVersion[1]
-    let nodeMinor = nodeVersion[2]
-
-    if (nodeMajor > 0 || (nodeMajor == 0 && nodeMinor >= 8))
-      return 1
-    else
-      echohl WarningMsg |
-            \ echomsg "Bower requires NodeJS v0.8+, you have " .
-            \ "Node " . rawNodeVersion . ". Please upgrade Node " .
-            \ "or set g:node_path" |
-            \ echohl None
-      return 0
-    endif
-  else
-    echohl WarningMsg |
-          \ echomsg "Bower.vim requires NodeJS to be installed" |
-          \ echohl None
-    return 0
-
-  endif
-endfunction
-
-
-function! s:NpmInstalled()
-  if executable(g:npm_path)
-    return 1
-  else
-    echohl WarningMsg |
-          \ echomsg "Bower.vim requires npm to be installed" |
-          \ echohl None
-    return 0
-  endif
-endfunction
-
 
 function! s:BowerInstalled()
   if executable(g:bower_path)
     return 1
-  else
-    echohl WarningMsg |
-          \ echomsg "Bower.vim requires bower - install it with npm install -g bower" |
-          \ echohl None
-    return 0
   endif
+
+  echohl WarningMsg |
+        \ echomsg 'Bower.vim requires bower - install it with npm install -g bower, or set g:bower_path' |
+        \ echohl None
+  return 0
 endfunction
 
 function! s:FindInCurrentPath(pattern)
@@ -76,71 +28,75 @@ function! s:FindInCurrentPath(pattern)
 
   " Don't try to change directories when on a virtual filesystem (netrw, fugitive,...).
   if match(expand('%:p'), '^\w\+://.*') != -1
-    return ""
+    return ''
   endif
 
-  let dir_current_file = fnameescape(expand("%:p:h"))
-  let pattern_dir = ""
+  let dir_current_file = expand('%:p:h')
+  if empty(dir_current_file)
+    let dir_current_file = getcwd()
+  endif
 
   " Check for directory or a file
-  if (stridx(a:pattern, "/")) != -1
-    let pattern = substitute(a:pattern, "/", "", "")
-    let pattern_dir = finddir(a:pattern, dir_current_file . ";")
+  let is_dir_pattern = stridx(a:pattern, '/') != -1
+  if is_dir_pattern
+    let pattern = substitute(a:pattern, '/', '', '')
+    let pattern_dir = finddir(pattern, escape(dir_current_file, ' ,') . ';')
   else
-    let pattern_dir = findfile(a:pattern, dir_current_file . ";")
+    let pattern_dir = findfile(a:pattern, escape(dir_current_file, ' ,') . ';')
   endif
 
   " If we're at the project root or we can't find one above us
-  if pattern_dir == a:pattern || empty(pattern_dir)
-    return ""
-  else
-    return substitute(pattern_dir, a:pattern . "$", "", "")
+  if empty(pattern_dir)
+    return ''
   endif
+
+  " The project root holds the matched file or directory
+  if is_dir_pattern
+    return fnamemodify(pattern_dir, ':p:h:h')
+  endif
+
+  return fnamemodify(pattern_dir, ':p:h')
 endfunction
 
-
-function! s:FindVCSRootDirectory()
+" The directory bower commands should run from: the closest directory at or
+" above the current file that looks like a bower project (or a VCS root),
+" falling back to the current working directory
+function! bower#Root()
   for pattern in g:bower_root_patterns
     let result = s:FindInCurrentPath(pattern)
     if !empty(result)
       return result
     endif
   endfor
+
+  return getcwd()
 endfunction
 
-
-function! FindComponentsDirectory()
-  let dir = expand('%:p:h', 1)
-
-  " quick check
-  while isdirectory(dir) && dir !=# fnamemodify(dir, ':h')
-    let dir = fnamemodify(dir, ':h')
-    if isdirectory(dir. '/components')
-        return dir
-    endif
-  endwhile
-
-  " check for a vcs root, then search from there for a components directory
-  let subdir = split(globpath(s:FindVCSRootDirectory()."/**", "components"), '\n')
-  if ! empty(subdir)
-    return fnamemodify(ssubdir[0], ":h")
+function! bower#Run(args)
+  if !s:BowerInstalled()
+    return
   endif
 
-  " finally, just use the current directory
-  return expand('%:p:h')
+  let cd = haslocaldir() ? 'lcd' : (exists('*haslocaldir') && haslocaldir(-1, 0) ? 'tcd' : 'cd')
+  let original_directory = getcwd()
+
+  execute cd . ' ' . fnameescape(bower#Root())
+
+  try
+    execute ':!' . g:bower_path . ' ' . escape(a:args, '!%#')
+  finally
+    execute cd . ' ' . fnameescape(original_directory)
+  endtry
 endfunction
 
-function! s:bower(bang, args)
-  if s:NodeInstalled() && s:NpmInstalled() && s:BowerInstalled()
-    let original_directory = getcwd()
-
-    execute ":cd " . FindComponentsDirectory()
-
-    let cmd = 'bower '.a:args
-    execute ':!'.cmd
-
-    execute ":cd " . original_directory
+function! bower#Complete(arglead, cmdline, cursorpos)
+  " only complete the subcommand itself
+  if strpart(a:cmdline, 0, a:cursorpos) !~# '^\s*Bower\s\+\S*$'
+    return []
   endif
-endfunction
 
-command! -bar -bang -nargs=* Bower call s:bower(<bang>0,<q-args>)
+  let commands = ['cache', 'help', 'home', 'info', 'init', 'install', 'link',
+        \ 'list', 'login', 'lookup', 'prune', 'register', 'search', 'update',
+        \ 'uninstall', 'unregister', 'version']
+  return filter(commands, 'stridx(v:val, a:arglead) == 0')
+endfunction
