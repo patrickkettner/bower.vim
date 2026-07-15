@@ -1,0 +1,60 @@
+*bower.txt*  Install browser components using Bower, right from Vim
+
+Author:  patrickkettner <http://github.com/patrickkettner>
+License: MIT (see LICENSE-MIT.txt)
+
+==============================================================================
+CONTENTS                                                      *bower-contents*
+
+  1. Introduction .......................... |bower-introduction|
+  2. Usage ................................. |bower-usage|
+  3. Configuration ......................... |bower-configuration|
+  4. How the project root is found ......... |bower-root|
+
+==============================================================================
+1. INTRODUCTION                                           *bower-introduction*
+
+Bower.vim runs the Bower package manager without leaving Vim. Any bower
+command works, and it always runs from your project's root, no matter how
+deeply nested the file you are editing is.
+
+Bower itself must be installed: >
+
+  npm install -g bower
+<
+==============================================================================
+2. USAGE                                                         *bower-usage*
+
+                                                                      *:Bower*
+:Bower {args}           Run bower with {args} from the project root. Anything
+                        bower accepts on the command line works here, and
+                        subcommand names tab-complete: >
+
+                          :Bower install jquery --save
+                          :Bower search typeahead
+                          :Bower update
+                          :Bower list
+<
+==============================================================================
+3. CONFIGURATION                                         *bower-configuration*
+
+                                                                *g:bower_path*
+g:bower_path            The bower executable to use.
+                        Default: "bower"
+
+                                                       *g:bower_root_patterns*
+g:bower_root_patterns   The list of files and directories (directories end in
+                        "/") that mark a project root, checked in order.
+                        Default: bower.json, .bowerrc, bower_components/,
+                        components/, and common VCS directories.
+
+==============================================================================
+4. HOW THE PROJECT ROOT IS FOUND                                  *bower-root*
+
+Starting from the directory of the current file, Bower.vim searches upwards
+for each pattern in |g:bower_root_patterns|, one pattern at a time: a
+bower.json far above always beats a VCS directory close by. The directory
+containing the first match wins. If nothing matches, the current working
+directory is used.
+
+vim:tw=78:ts=8:ft=help:norl:
