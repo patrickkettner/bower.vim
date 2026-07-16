@@ -1,3 +1,10 @@
+> **deprecated.** [Bower itself has been winding down since 2017](https://bower.io/blog/2017/how-to-migrate-away-from-bower/),
+> and this plugin is retired along with it. Its successor is
+> [importmap.vim](https://github.com/patrickkettner/importmap.vim), which
+> delivers the same "get a library into my page from vim" workflow with no
+> package manager at all, just web standards. bower.vim still works if you
+> still have bower, but it won't be getting new features.
+
 ## About
 
 [Bower.vim] is a way to install browser components in [Vim] using [Bower].
